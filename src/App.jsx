@@ -4,7 +4,7 @@ import Stage from './components/Stage.jsx';
 import {insertPastedNames} from './game/pasteNames.js';
 export default function App(){
  const [text,setText]=useState(''),[students,setStudents]=useState([]),[history,setHistory]=useState([]),[stage,setStage]=useState(false),[error,setError]=useState('');
- const [options,setOptions]=useState({count:2,duration:25,sound:true});
+ const [options,setOptions]=useState({count:1,duration:15,sound:true});
  const opt=patch=>setOptions(o=>({...o,...patch}));
  const present=students.filter(s=>!s.absent);
  function change(value){setText(value);setStudents(parseNames(value).map(n=>students.find(s=>s.name===n)||{name:n,gender:guessGender(n),absent:false}));}
