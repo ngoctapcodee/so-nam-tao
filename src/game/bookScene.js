@@ -5,11 +5,11 @@ import { world, figure, reapers, text, clamp, chain, portal } from './underworld
 
 export class BookScene extends Scene {
  constructor(canvas){super(canvas);this.bookTime=0;this.dialogueTime=0;this.duration=20;this.lastBeat=-1;this.chosen=[];}
- startRun(picks){this.chosen=picks;this.verdicts=cryptoSample(VERDICTS,picks.length);this.bookTime=0;this.lastBeat=-1;this.mode='run';this.run=null;}
- newLobby(){this.mode='lobby';this.chosen=[];this.bookTime=0;this.timeScale=1;this.run=null;}
+ startRun(picks){Sfx.stopScreams();this.captureVoiced=false;this.chosen=picks;this.verdicts=cryptoSample(VERDICTS,picks.length);this.bookTime=0;this.lastBeat=-1;this.mode='run';this.run=null;}
+ newLobby(){Sfx.stopScreams();this.mode='lobby';this.chosen=[];this.bookTime=0;this.timeScale=1;this.run=null;}
  inviteToBoard(){if(this.mode!=='done')return;this.mode='presenting';this.presentationTime=0;this.boardLines=cryptoSample(DIALOGUE.answering,this.chosen.length);this.timeScale=1;Sfx.drum?.();}
  completePresentation(){if(this.mode!=='presenting')return;this.presentationTime=6;this.mode='answering';this.answeringStarted=this.dialogueTime;this.onPresentationDone?.();}
- update(dt){this.time+=dt;if(this.mode==='presenting'){this.presentationTime+=dt;if(this.presentationTime>=6)this.completePresentation();return;}if(this.mode!=='run')return;this.bookTime+=dt;const p=this.bookTime/this.duration;const beat=Math.floor(this.bookTime*(p>.72?6:2));if(beat!==this.lastBeat&&p<.85){this.lastBeat=beat;Sfx.drum?.();}if(this.bookTime>=this.duration)this.finish();}
+ update(dt){this.time+=dt;if(this.mode==='presenting'){this.presentationTime+=dt;if(this.presentationTime>=6)this.completePresentation();return;}if(this.mode!=='run')return;this.bookTime+=dt;const p=this.bookTime/this.duration;if(p>=.905&&!this.captureVoiced){this.captureVoiced=true;Sfx.scream(this.chosen.length);}const beat=Math.floor(this.bookTime*(p>.72?6:2));if(beat!==this.lastBeat&&p<.85){this.lastBeat=beat;Sfx.drum?.();}if(this.bookTime>=this.duration)this.finish();}
  finish(){if(this.mode!=='run')return;this.bookTime=this.duration;this.mode='done';Sfx.stamp?.();this.onResult?.(this.chosen.map((p,i)=>({...p.st,verdict:this.verdicts[i]})));}
  skipToEnd(){if(this.mode==='presenting')this.completePresentation();else this.finish();}
  render(){

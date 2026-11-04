@@ -468,7 +468,7 @@ const Sfx = {
   },
   stopAll() {
     const s = this.silent; this.silent = false;
-    this.sirenOff(); this.humOff(false); this.windOff();
+    this.sirenOff(); this.humOff(false); this.windOff(); this.stopScreams?.();
     this.silent = s;
   },
 };
@@ -2991,3 +2991,48 @@ Sfx.drum = function () {
  osc.connect(gain); gain.connect(this.ctx.destination); osc.start(t); osc.stop(t+.24);
 };
 Sfx.stamp = function () { this.drum(); };
+
+// Tiếng “á” tổng hợp: cao độ rung, cộng hưởng nguyên âm và hơi thở.
+// Đi qua master gain để tuân theo công tắc âm thanh của ứng dụng.
+Sfx.stopScreams = function () {
+ for (const voice of this.captureVoices || []) {
+  for (const node of voice.sources) { try { node.stop(); } catch {} }
+  for (const node of voice.nodes) { try { node.disconnect(); } catch {} }
+ }
+ this.captureVoices = [];
+};
+Sfx.scream = function (count = 1) {
+ if (!this.ok() || this.muted) return;
+ this.stopScreams();
+ for (let i = 0; i < Math.min(3, count); i++) {
+  const t = this.ctx.currentTime + i * .11, duration = 1.18;
+  const base = 290 + i * 75 + Math.random() * 55;
+  const voice = this._osc('sawtooth', base), vibrato = this._osc('sine', 8 + i);
+  const vibratoGain = this._gain(28), envelope = this._gain(0);
+  voice.frequency.setValueAtTime(base * .75, t);
+  voice.frequency.exponentialRampToValueAtTime(base * 1.55, t + .16);
+  voice.frequency.exponentialRampToValueAtTime(base * 1.2, t + .65);
+  voice.frequency.exponentialRampToValueAtTime(base * .65, t + duration);
+  vibrato.connect(vibratoGain); vibratoGain.connect(voice.frequency);
+  envelope.gain.setValueAtTime(0, t);
+  envelope.gain.linearRampToValueAtTime(.15 / Math.sqrt(Math.min(3, count)), t + .06);
+  envelope.gain.setTargetAtTime(.055, t + .6, .2);
+  envelope.gain.exponentialRampToValueAtTime(.001, t + duration);
+  envelope.connect(this.master);
+  const nodes = [voice, vibrato, vibratoGain, envelope];
+  for (const [frequency, q, volume] of [[850, 6, 1], [1250, 8, .55], [2700, 9, .15]]) {
+   const filter = this._filter('bandpass', frequency, q), gain = this._gain(volume);
+   voice.connect(filter); filter.connect(gain); gain.connect(envelope); nodes.push(filter, gain);
+  }
+  const breath = this._noise(), breathFilter = this._filter('bandpass', 1800, .7), breathGain = this._gain(.07);
+  breath.connect(breathFilter); breathFilter.connect(breathGain); breathGain.connect(envelope);
+  nodes.push(breath, breathFilter, breathGain);
+  const record = { sources: [voice, vibrato, breath], nodes };
+  this.captureVoices.push(record);
+  voice.onended = () => {
+   nodes.forEach(node => { try { node.disconnect(); } catch {} });
+   this.captureVoices = (this.captureVoices || []).filter(item => item !== record);
+  };
+  for (const source of record.sources) { source.start(t); source.stop(t + duration + .05); }
+ }
+};
