@@ -153,10 +153,10 @@ export class BookScene extends Scene {
   const penX=pos.x-221,penY=pos.y+(interpolate?(next.y-pos.y)*cursor.fraction:0);
   c.save();c.translate(penX,penY);c.rotate(-.48);
   c.shadowColor='#63212d66';c.shadowBlur=7;c.fillStyle='#47212b';c.fillRect(-5,-66,10,62);c.fillStyle='#c5a264';c.fillRect(-6,-24,12,8);c.fillStyle='#a61f34';c.beginPath();c.moveTo(-5,-4);c.lineTo(0,12);c.lineTo(5,-4);c.fill();c.restore();
-  text(c,`Trang ${page+1}/${Math.max(1,Math.ceil(names.length/pageSize))} · ${names.length} tên`,0,190,19,'#76513e');
+  text(c,`Trang ${page+1}/${Math.max(1,Math.ceil(names.length/pageSize))} · ${names.length} tên`,0,169,19,'#76513e');
   if(p<.78){
-   text(c,p>.60?'CHẬM LẠI… SẮP DỪNG!':'Bút đang lướt qua từng tên…',0,225,20,'#8f2c3b');
-   if(names.length>1){const previous=(cursor.index-1+names.length)%names.length;c.font='16px "Be Vietnam Pro",sans-serif';c.fillStyle='#735747';c.fillText(`Vừa lướt qua: ${names[previous]}`,0,252,800);}
+   text(c,p>.60?'CHẬM LẠI… SẮP DỪNG!':'Bút đang lướt qua từng tên…',0,202,20,'#8f2c3b');
+   if(names.length>1){const previous=(cursor.index-1+names.length)%names.length;c.font='16px "Be Vietnam Pro",sans-serif';c.fillStyle='#735747';c.fillText(`Vừa lướt qua: ${names[previous]}`,0,233,800);}
   }else{
    if(p>.84){c.save();c.translate(0,232);c.rotate(-.025);c.strokeStyle='#a52333';c.lineWidth=3;c.strokeRect(-190,-22,380,44);text(c,'ĐẾN LƯỢT CON',0,0,28,'#a52333');c.restore();}
   }
