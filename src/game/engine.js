@@ -3036,3 +3036,11 @@ Sfx.scream = function (count = 1) {
   for (const source of record.sources) { source.start(t); source.stop(t + duration + .05); }
  }
 };
+
+Sfx.penTick = function () {
+ if (!this.ok() || this.muted) return;
+ const t=this.ctx.currentTime,osc=this._osc('triangle',700),gain=this._gain(.035);
+ osc.frequency.exponentialRampToValueAtTime(380,t+.035);
+ gain.gain.exponentialRampToValueAtTime(.001,t+.045);
+ osc.connect(gain);gain.connect(this.master);osc.start(t);osc.stop(t+.05);
+};

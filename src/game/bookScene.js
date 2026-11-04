@@ -1,3 +1,4 @@
+import { createNameDraw, nameDrawCursor } from './nameDraw.js';
 import { DIALOGUE, bubble, ambientDialogue } from './dialogue.js';
 import { VERDICTS } from './verdicts.js';
 import { Scene, Sfx, cryptoSample } from './engine.js';
@@ -5,11 +6,11 @@ import { world, figure, reapers, text, clamp, chain, portal } from './underworld
 
 export class BookScene extends Scene {
  constructor(canvas){super(canvas);this.bookTime=0;this.dialogueTime=0;this.duration=20;this.lastBeat=-1;this.chosen=[];}
- startRun(picks){Sfx.stopScreams();this.captureVoiced=false;this.chosen=picks;this.verdicts=cryptoSample(VERDICTS,picks.length);this.bookTime=0;this.lastBeat=-1;this.mode='run';this.run=null;}
+ startRun(picks){Sfx.stopScreams();this.captureVoiced=false;this.chosen=picks;this.verdicts=cryptoSample(VERDICTS,picks.length);this.nameDraw=createNameDraw(this.people.map(p=>p.st.name),picks[0]?.st.name);this.lastNameStep=-1;this.lastNameTick=0;this.bookTime=0;this.lastBeat=-1;this.mode='run';this.run=null;}
  newLobby(){Sfx.stopScreams();this.mode='lobby';this.chosen=[];this.bookTime=0;this.timeScale=1;this.run=null;}
  inviteToBoard(){if(this.mode!=='done')return;this.mode='presenting';this.presentationTime=0;this.boardLines=cryptoSample(DIALOGUE.answering,this.chosen.length);this.timeScale=1;Sfx.drum?.();}
  completePresentation(){if(this.mode!=='presenting')return;this.presentationTime=6;this.mode='answering';this.answeringStarted=this.dialogueTime;this.onPresentationDone?.();}
- update(dt){this.time+=dt;if(this.mode==='presenting'){this.presentationTime+=dt;if(this.presentationTime>=6)this.completePresentation();return;}if(this.mode!=='run')return;this.bookTime+=dt;const p=this.bookTime/this.duration;if(p>=.905&&!this.captureVoiced){this.captureVoiced=true;Sfx.scream(this.chosen.length);}const beat=Math.floor(this.bookTime*(p>.72?6:2));if(beat!==this.lastBeat&&p<.85){this.lastBeat=beat;Sfx.drum?.();}if(this.bookTime>=this.duration)this.finish();}
+ update(dt){this.time+=dt;if(this.mode==='presenting'){this.presentationTime+=dt;if(this.presentationTime>=6)this.completePresentation();return;}if(this.mode!=='run')return;this.bookTime+=dt;const p=this.bookTime/this.duration;if(p>=.20&&p<.78){const cursor=nameDrawCursor(this.nameDraw,(p-.20)/.58);if(cursor.step!==this.lastNameStep){this.lastNameStep=cursor.step;if(!this.lastNameTick||this.time-this.lastNameTick>.055){Sfx.penTick();this.lastNameTick=this.time;}}}if(p>=.905&&!this.captureVoiced){this.captureVoiced=true;Sfx.scream(this.chosen.length);}const beat=Math.floor(this.bookTime*(p>.72?6:2));if(beat!==this.lastBeat&&p<.85){this.lastBeat=beat;Sfx.drum?.();}if(this.bookTime>=this.duration)this.finish();}
  finish(){if(this.mode!=='run')return;this.bookTime=this.duration;this.mode='done';Sfx.stamp?.();this.onResult?.(this.chosen.map((p,i)=>({...p.st,verdict:this.verdicts[i]})));}
  skipToEnd(){if(this.mode==='presenting')this.completePresentation();else this.finish();}
  render(){
@@ -100,7 +101,7 @@ export class BookScene extends Scene {
   c.restore();c.restore();
  }
  drawBook(c,p){
-  const opening=clamp(p/.08),scale=.86,centerX=1200,centerY=475;
+  const opening=clamp(p/.08),scale=this.people.length>14?1.04:.94,centerX=this.people.length>14?1270:1240,centerY=475;
   c.save();c.translate(centerX,centerY);c.scale(scale,scale*.82);
   const bw=980,left=-490,top=-250;
   c.shadowColor='#090710';c.shadowBlur=22;c.fillStyle='#682d33';c.beginPath();c.roundRect(left-13,top-13,bw+26,526,12);c.fill();c.shadowBlur=0;
@@ -133,16 +134,31 @@ export class BookScene extends Scene {
    c.save();c.scale(Math.cos(angle)||.001,1);const pg=c.createLinearGradient(0,0,480,0);pg.addColorStop(0,'#a38658');pg.addColorStop(.3,'#efdfb3');pg.addColorStop(1,'#cbb17e');c.fillStyle=pg;c.beginPath();c.moveTo(0,-250);c.quadraticCurveTo(250,-285-Math.sin(angle)*80,480,-250);c.lineTo(480,250);c.quadraticCurveTo(240,220-Math.sin(angle)*60,0,250);c.fill();c.restore();
    c.fillStyle='#4a33294d';c.fillRect(-8,-250,16+Math.sin(angle)*30,500);text(c,`Trang ${page+1}`,245,215,20,'#73503b');c.restore();return;
   }
-  c.fillStyle='#b59a6b';c.fillRect(-10,top,20,500);text(c,'SỔ ĐIỂM DANH',-245,-210,28,'#653d31');text(c,'LỆNH GỌI TÊN',245,-210,28,'#653d31');
-  const names=this.people.map(person=>person.st.name),offset=Math.floor(Math.min(this.bookTime,this.duration*.78)*5);
-  c.save();c.beginPath();c.rect(left+18,-170,bw/2-35,370);c.clip();
-  for(let i=0;i<7;i++){const name=names[(offset+i)%names.length]||'';text(c,name,-245,-145+i*49,23,'#4b352b');}c.restore();
-  if(p<.78){text(c,'ĐANG CÂN NHẮC…',245,-70,25,'#8a3038');text(c,'Ai sẽ lên bảng?',245,5,24,'#684d39');
-   // Bút lắc bên trang, chưa khoanh hay tiết lộ tên trúng.
-   c.save();c.translate(320+Math.sin(this.time*2)*12,100);c.rotate(-.4+Math.sin(this.time*2)*.12);c.fillStyle='#4c2630';c.fillRect(-5,-95,10,105);c.fillStyle='#b82e3c';c.beginPath();c.moveTo(-5,10);c.lineTo(0,29);c.lineTo(5,10);c.fill();c.restore();
+  c.fillStyle='#b59a6b';c.fillRect(-10,top,20,500);
+  const names=this.people.map(person=>person.st.name),cursor=nameDrawCursor(this.nameDraw,clamp((p-.20)/.58));
+  const pageSize=14,page=Math.floor(cursor.index/pageSize),first=page*pageSize;
+  text(c,'SỔ ĐIỂM DANH',-245,-210,27,'#653d31');text(c,'BÚT SON GỌI TÊN',245,-210,27,'#653d31');
+  const slotOf=index=>{const slot=index-first;return {x:slot<7?-245:245,y:-148+(slot%7)*44};};
+  for(let i=first;i<Math.min(first+pageSize,names.length);i++){
+   const pos=slotOf(i),hover=i===cursor.index;
+   if(hover){c.fillStyle='#b3323c22';c.beginPath();c.roundRect(pos.x-210,pos.y-19,420,38,7);c.fill();}
+   c.font=`${hover?'800':'500'} 24px "Be Vietnam Pro",sans-serif`;c.fillStyle=hover?'#9e2034':'#4b352b';c.textAlign='center';c.fillText(names[i],pos.x,pos.y,370);
+   if(p>=.78&&this.chosen.some(person=>person.st.name===names[i])){
+    const arc=clamp((p-.78)/.055);c.strokeStyle='#ac2035';c.lineWidth=4;c.beginPath();c.ellipse(pos.x,pos.y,208,23,-.025,0,Math.PI*2*arc);c.stroke();
+   }
+  }
+  const pos=slotOf(cursor.index),nextIndex=(cursor.index+1)%Math.max(1,names.length),next=slotOf(nextIndex);
+  // Mũi bút trượt tới dòng kế tiếp; khi đổi trang, lật trang rồi mới chạy tiếp.
+  const interpolate=p<.78&&Math.floor(nextIndex/pageSize)===page&&next.x===pos.x;
+  const penX=pos.x-221,penY=pos.y+(interpolate?(next.y-pos.y)*cursor.fraction:0);
+  c.save();c.translate(penX,penY);c.rotate(-.48);
+  c.shadowColor='#63212d66';c.shadowBlur=7;c.fillStyle='#47212b';c.fillRect(-5,-66,10,62);c.fillStyle='#c5a264';c.fillRect(-6,-24,12,8);c.fillStyle='#a61f34';c.beginPath();c.moveTo(-5,-4);c.lineTo(0,12);c.lineTo(5,-4);c.fill();c.restore();
+  text(c,`Trang ${page+1}/${Math.max(1,Math.ceil(names.length/pageSize))} · ${names.length} tên`,0,190,19,'#76513e');
+  if(p<.78){
+   text(c,p>.60?'CHẬM LẠI… SẮP DỪNG!':'Bút đang lướt qua từng tên…',0,225,20,'#8f2c3b');
+   if(names.length>1){const previous=(cursor.index-1+names.length)%names.length;c.font='16px "Be Vietnam Pro",sans-serif';c.fillStyle='#735747';c.fillText(`Vừa lướt qua: ${names[previous]}`,0,252,800);}
   }else{
-   this.chosen.forEach((person,i)=>{const y=-140+i*63;text(c,person.st.name,245,y,25,'#432824');text(c,this.verdicts[i],245,y+27,14,'#8a3038');const arc=clamp((p-.79-i*.004)/.05);if(arc>0){c.strokeStyle='#b01f31';c.lineWidth=4;c.beginPath();c.ellipse(245,y,220,25,-.04,0,Math.PI*2*arc);c.stroke();const angle=Math.PI*2*arc;text(c,'✒',245+220*Math.cos(angle),y+25*Math.sin(angle),42,'#9e2433');}});
-   if(p>.85){c.save();c.translate(245,205);c.rotate(-.08);c.strokeStyle='#a52333';c.lineWidth=4;c.strokeRect(-210,-28,420,56);text(c,'ĐẾN LƯỢT CON',0,0,34,'#a52333');c.restore();}
+   if(p>.84){c.save();c.translate(0,232);c.rotate(-.025);c.strokeStyle='#a52333';c.lineWidth=3;c.strokeRect(-190,-22,380,44);text(c,'ĐẾN LƯỢT CON',0,0,28,'#a52333');c.restore();}
   }
   c.restore();
  }

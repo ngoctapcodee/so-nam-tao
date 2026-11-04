@@ -26,3 +26,5 @@ Cảnh địa phủ vẽ bằng Canvas: Mạnh Bà nấu canh, Hắc Bạch Vô 
 Sách mở bìa từ phải sang trái, lật nhanh tám trang rồi mới tra tên. Mỗi người được gọi nhận một tội danh hài ngẫu nhiên; nội dung trên sổ và bảng kết quả luôn khớp nhau. Cư dân gồm ma tóc dài, ma đói, ma bộ đội, học giả, người già và người chờ nhận bài tập chuyển từ lớp học. Biển Wi-Fi: `passwifi: diangucxinchao`.
 
 Thư mục dự án: `so-nam-tao`. Nền dùng chủ đề lớp học: quầy bút mực, trạm chuyển bài tập và phòng chờ kiểm tra miệng. Nhân vật phụ, hồn ma và người tham gia có câu thoại luân phiên, giới hạn số bong bóng cùng lúc.
+
+Bút chạy qua tên theo danh sách và giảm tốc trước khi dừng. Sổ tăng kích thước khi có trên 14 tên; mỗi trang hiện tối đa 14 tên. Sau khi khoanh và bắt người, bảng kiểm tra tự hiện, có nút xóa tên vừa gọi khỏi danh sách trên thanh điều khiển.
