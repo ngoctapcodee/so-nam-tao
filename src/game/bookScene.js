@@ -20,7 +20,7 @@ export class BookScene extends Scene {
   this.run = null;
   Sfx.humOn();
  }
- newLobby(){Sfx.stopScreams();this.mode='lobby';this.chosen=[];this.bookTime=0;this.timeScale=1;this.run=null;}
+ newLobby(){stopPlea();Sfx.stopScreams();this.mode='lobby';this.chosen=[];this.bookTime=0;this.timeScale=1;this.run=null;}
  inviteToBoard(){if(this.mode!=='done')return;this.mode='presenting';this.presentationTime=0;this.boardLines=cryptoSample(DIALOGUE.answering,this.chosen.length);this.timeScale=1;Sfx.drum?.();}
  completePresentation(){if(this.mode!=='presenting')return;this.presentationTime=6;this.mode='answering';this.answeringStarted=this.dialogueTime;this.onPresentationDone?.();}
  update(dt){
@@ -47,7 +47,7 @@ export class BookScene extends Scene {
    }
    rattleChain(kind==='sweep'||kind==='seal'?1.35:1);
   });
-  if(progress>=.865 && !this.captureVoiced){
+  if(progress>=.88 && !this.captureVoiced){
    this.captureVoiced = true;
    rattleChain(1.5);
    speakPlea(this.pleas[1]);
@@ -63,10 +63,9 @@ export class BookScene extends Scene {
   this.bookTime = this.duration;
   this.mode = 'done';
   Sfx.humOff(false);
-  stopPlea();
   this.onResult?.(this.chosen.map((person,i)=>({...person.st,verdict:this.verdicts[i]})));
  }
- skipToEnd(){if(this.mode==='presenting')this.completePresentation();else this.finish();}
+ skipToEnd(){stopPlea();if(this.mode==='presenting')this.completePresentation();else this.finish();}
  render(){
  const c=this.ctx;c.save();c.setTransform(this.cv.width/1920,0,0,this.cv.height/1080,0,0);c.textBaseline='middle';
  const presenting=this.mode==='presenting'||this.mode==='answering';
@@ -208,7 +207,7 @@ export class BookScene extends Scene {
   const width=Math.min(finalPool?240:180,900/columns-12);
   const height=Math.min(finalPool?78:53,330/rows-5);
   const swing=Math.sin(this.time*22);
-  const title=p>=.84?'ĐẾN LƯỢT CON':finalPool?'GIẰNG CO SÁT NÚT':'HỒ SƠ TRONG SỔ NAM TÀO';
+  const title=p>=.84?'ĐẾN LƯỢT CON':finalPool?(draw.reserve?'GIẰNG CO SÁT NÚT':'KÉO HỒ SƠ VỀ SỔ'):'HỒ SƠ TRONG SỔ NAM TÀO';
   text(c,title,0,-212,30,'#733240');
   const recent=[...draw.changed.entries()].filter(([,event])=>p-event.at<.065);
   files.forEach((person,index)=>{
@@ -250,7 +249,7 @@ export class BookScene extends Scene {
    c.fillText(person.st.name,0,0,width-12);
    c.restore();
   });
-  if(p>=.68&&p<.735){
+  if(draw.escaped.size&&p>=.68&&p<.735){
    const sweep=clamp((p-.68)/.055);
    chain(c,this.time,[425,150],[425-850*Math.sin(sweep*Math.PI),80-225*Math.sin(sweep*Math.PI)],.65);
   }
@@ -267,8 +266,8 @@ export class BookScene extends Scene {
   }
   const status=p>=.84?(draw.slipped?'Móc xích bật tung · hồ sơ khác bị giữ!':'Xích siết chặt · Diêm Vương đóng ấn'):
    finalPool?'Xích đã kéo sát bàn…':
-   p>=.68?(draw.returning?'Xích quét ngược kéo hồ sơ trở lại!':'Xích quét ngược hụt!'):
-   'Trống thưa dần · hồ sơ lần lượt tuột xích';
+   draw.escaped.size&&p>=.68?(draw.returning?'Xích quét ngược kéo hồ sơ trở lại!':'Xích quét ngược hụt!'):
+   this.people.length>draw.requested+1?'Trống thưa dần · hồ sơ lần lượt tuột xích':'Xích đang giữ các hồ sơ còn lại';
   text(c,status,0,182,22,'#793044');
   const released=recent.filter(([,event])=>!event.returning).map(([person])=>person.st.label || person.st.name);
   const footer=released.length?`${p>=.84?'Thoát lượt này':'Tạm thoát'} · ${released.slice(0,3).join(', ')}${released.length>3?` +${released.length-3}`:''}`:`Còn mắc xích · ${draw.active.length} hồ sơ`;

@@ -18,7 +18,8 @@ export class ChainDraw {
       this.events.push({ at: .19 + .46 * fraction ** 1.6, kind: 'escape', count: total - removed });
       removed = total;
     }
-    this.events.push({ at: .68, kind: 'sweep' }, { at: .74, kind: 'pull' }, { at: .84, kind: 'seal' });
+    if (escapes) this.events.push({ at: .68, kind: 'sweep' });
+    this.events.push({ at: .74, kind: 'pull' }, { at: .84, kind: 'seal' });
   }
 
   advance(progress, onBeat = () => {}) {

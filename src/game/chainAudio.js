@@ -2,7 +2,7 @@ import { Sfx } from './engine.js';
 
 export const PLEAS = [
   'Tha cho em, Diêm Vương ơi!', 'Khoan đã, cho em ôn thêm chút!', 'Em biết lỗi rồi, tha cho em!',
-  'Thả em ra, em hứa học bài!', 'Cho em về chỗ đi mà!', 'Đừng kéo nữa, em tự lên bảng!'
+  'Cho em về chỗ đi mà!'
 ];
 
 const clips = new Map();
@@ -14,7 +14,7 @@ export function preloadPleas() {
   if (!context) return;
   PLEAS.forEach((line, index) => {
     if (clips.has(line)) return;
-    clips.set(line, fetch(`${import.meta.env.BASE_URL}audio/plea-${index + 1}.mp3`)
+    clips.set(line, fetch(`${import.meta.env.BASE_URL}audio/plea-${index + 1}.mp3?v=2`)
       .then(response => {
         if (!response.ok) throw new Error('Cannot load plea');
         return response.arrayBuffer();
