@@ -20,7 +20,7 @@ export class BookScene extends Scene {
  // Diêm Vương luôn ở trong cảnh; khi mở sổ mới cầm bút suy nghĩ.
  figure(c,690,625,{robe:'#8c3037',kind:'king',scale:1.3,t:this.time,action:active&&p<.78?'think':'angry'});
  c.fillStyle='#542e30';c.fillRect(610,615,700,65);c.fillStyle='#b38a50';c.fillRect(605,610,710,10);c.fillStyle='#39252b';c.fillRect(640,680,24,40);c.fillRect(1260,680,24,40);
- text(c,active?(p<.78?'Diêm Vương đang suy nghĩ…':p<.87?'Bút son đã hạ!':'Hắc Bạch Vô Thường, dẫn lên bảng!'):'Diêm Vương chờ mở sổ',970,710,23);
+ text(c,active?(p<.78?'Diêm Vương đang suy nghĩ…':p<.87?'Lồng đèn đã chọn tên!':'Hắc Bạch Vô Thường, dẫn lên bảng!'):'Diêm Vương chờ mở sổ',970,710,23);
  if(!(active&&p<.89)){c.fillStyle='#682b32';c.fillRect(925,580,170,27);text(c,'SỔ NAM TÀO',1010,593,16,'#eac17a');}
  if(active&&p>.86)portal(c,this.time,1750,870,clamp((p-.86)/.035));
  const count=this.people.length,cols=Math.min(12,count),rows=Math.ceil(count/cols),spacing=Math.min(115,1320/cols);
@@ -50,7 +50,7 @@ export class BookScene extends Scene {
   const name=person.st.name;c.font='600 17px "Be Vietnam Pro",sans-serif';const width=Math.min(190,c.measureText(name).width+18);c.fillStyle=selected&&p>.8?'#852e3a':'#191c2be6';c.fillRect(targetX-width/2,targetY+12,width,28);text(c,name,targetX,targetY+27,16);c.restore();
  });
  if(!active&&!presenting){reapers(c,this.time,1120+Math.sin(this.time*.4)*90,750,60);text(c,'Hắc Bạch Vô Thường · chờ lệnh',1120,790,18);}
- if(active){const label=p<.08?'Mở bìa sổ':p<.20?'Lật sổ sinh tử':p<.78?'Tra sổ · ai chưa học bài?':p<.86?'Khoanh tên bằng bút son':'Áp giải người được gọi';text(c,label,960,105,27,'#f1d4a0');c.fillStyle='#221d2c';c.fillRect(660,130,600,6);c.fillStyle='#ba5960';c.fillRect(660,130,600*p,6);}
+ if(active){const label=p<.08?'Mở bìa sổ':p<.20?'Lật sổ sinh tử':p<.78?'Tra sổ · ai chưa học bài?':p<.86?'Lồng đèn sáng tên được gọi':'Áp giải người được gọi';text(c,label,960,105,27,'#f1d4a0');c.fillStyle='#221d2c';c.fillRect(660,130,600,6);c.fillStyle='#ba5960';c.fillRect(660,130,600*p,6);}
  // Lời người tham gia: một người nói mỗi lượt, giữ nguyên bảng tên bên dưới.
  const slot=Math.floor(this.dialogueTime/12),phase=this.dialogueTime%12;
  if(!presenting&&this.people.length&&phase>1&&phase<10){
@@ -141,22 +141,40 @@ export class BookScene extends Scene {
   const halfWidth=columns===1?345:195;
   const slotOf=index=>{const slot=index-first,row=Math.floor(slot/columns),col=slot%columns;return {x:columns===1?0:(col-.5)*460,y:-15+(row-(rows-1)/2)*44};};
   for(let i=first;i<Math.min(first+pageSize,names.length);i++){
-   const pos=slotOf(i),hover=i===cursor.index;
-   if(hover){c.fillStyle='#b3323c22';c.beginPath();c.roundRect(pos.x-halfWidth,pos.y-19,halfWidth*2,38,7);c.fill();}
-   c.font=`${hover?'800':'500'} 24px "Be Vietnam Pro",sans-serif`;c.fillStyle=hover?'#9e2034':'#4b352b';c.textAlign='center';c.fillText(names[i],pos.x,pos.y,halfWidth*2-30);
-   if(p>=.78&&this.chosen.some(person=>person.st.name===names[i])){
-    const arc=clamp((p-.78)/.055);c.strokeStyle='#ac2035';c.lineWidth=4;c.beginPath();c.ellipse(pos.x,pos.y,halfWidth,23,-.025,0,Math.PI*2*arc);c.stroke();
+   const pos=slotOf(i);
+   const revealed=p>=.78;
+   const chosen=revealed&&this.chosen.some(person=>person.st.name===names[i]);
+   const lit=revealed ? chosen : i===cursor.index;
+   if(lit){
+    c.fillStyle='#eaa53644';
+    c.beginPath();
+    c.roundRect(pos.x-halfWidth,pos.y-19,halfWidth*2,38,7);
+    c.fill();
    }
+   c.save();
+   c.translate(pos.x-halfWidth+19,pos.y);
+   if(lit){
+    c.shadowColor='#ffad33';
+    c.shadowBlur=chosen && Math.sin((p-.78)*220)>0 ? 30 : 15;
+   }
+   c.fillStyle=lit?'#ffc754':'#846d60';
+   c.beginPath();
+   c.ellipse(0,0,11,13,0,0,Math.PI*2);
+   c.fill();
+   c.shadowBlur=0;
+   c.fillStyle='#674035';
+   c.fillRect(-6,-15,12,4);
+   c.fillRect(-6,11,12,4);
+   c.restore();
+
+   c.font=`${lit?'800':'500'} 24px "Be Vietnam Pro",sans-serif`;
+   c.fillStyle=lit?'#902237':revealed?'#806e60':'#4b352b';
+   c.textAlign='center';
+   c.fillText(names[i],pos.x+12,pos.y,halfWidth*2-62);
   }
-  const pos=slotOf(cursor.index),nextIndex=(cursor.index+1)%Math.max(1,names.length),next=slotOf(nextIndex);
-  // Mũi bút trượt tới dòng kế tiếp; khi đổi trang, lật trang rồi mới chạy tiếp.
-  const interpolate=p<.78&&Math.floor(nextIndex/pageSize)===page;
-  const penX=pos.x-halfWidth-11+(interpolate?(next.x-pos.x)*cursor.fraction:0),penY=pos.y+(interpolate?(next.y-pos.y)*cursor.fraction:0);
-  c.save();c.translate(penX,penY);c.rotate(-.48);
-  c.shadowColor='#63212d66';c.shadowBlur=7;c.fillStyle='#47212b';c.fillRect(-5,-66,10,62);c.fillStyle='#c5a264';c.fillRect(-6,-24,12,8);c.fillStyle='#a61f34';c.beginPath();c.moveTo(-5,-4);c.lineTo(0,12);c.lineTo(5,-4);c.fill();c.restore();
   text(c,`Trang ${page+1}/${Math.max(1,Math.ceil(names.length/pageSize))} · ${names.length} tên`,0,169,19,'#76513e');
   if(p<.78){
-   text(c,p>.60?'CHẬM LẠI… SẮP DỪNG!':'Bút đang lướt qua từng tên…',0,202,20,'#8f2c3b');
+   text(c,p>.60?'CHẬM LẠI… SẮP DỪNG!':'Ánh đèn đang chạy qua từng tên…',0,202,20,'#8f2c3b');
    if(names.length>1){const previous=(cursor.index-1+names.length)%names.length;c.font='16px "Be Vietnam Pro",sans-serif';c.fillStyle='#735747';c.fillText(`Vừa lướt qua: ${names[previous]}`,0,233,800);}
   }else{
    if(p>.84){c.save();c.translate(0,232);c.rotate(-.025);c.strokeStyle='#a52333';c.lineWidth=3;c.strokeRect(-190,-22,380,44);text(c,'ĐẾN LƯỢT CON',0,0,28,'#a52333');c.restore();}

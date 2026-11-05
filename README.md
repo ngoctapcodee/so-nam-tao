@@ -27,4 +27,4 @@ Sách mở bìa từ phải sang trái, lật nhanh tám trang rồi mới tra t
 
 Thư mục dự án: `so-nam-tao`. Nền dùng chủ đề lớp học: quầy bút mực, trạm chuyển bài tập và phòng chờ kiểm tra miệng. Nhân vật phụ, hồn ma và người tham gia có câu thoại luân phiên, giới hạn số bong bóng cùng lúc.
 
-Bút chạy qua tên theo danh sách và giảm tốc trước khi dừng. Sổ tăng kích thước khi có trên 14 tên; mỗi trang hiện tối đa 14 tên. Sau khi khoanh và bắt người, bảng kiểm tra tự hiện, có nút xóa tên vừa gọi khỏi danh sách trên thanh điều khiển.
+Ánh sáng chạy qua từng lồng đèn và giảm tốc. Cuối lượt, đèn có thể dừng tại chỗ hoặc khựng lại rồi nhích sang tên kế bên. Sổ tăng kích thước khi có trên 14 tên; mỗi trang hiện tối đa 14 tên. Sau khi lồng đèn sáng tên và bắt người, bảng kiểm tra tự hiện, có nút xóa tên vừa gọi khỏi danh sách trên thanh điều khiển.
