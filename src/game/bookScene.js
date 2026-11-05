@@ -1,4 +1,5 @@
-import { createNameDraw, nameDrawCursor } from './nameDraw.js';
+import { ChainDraw } from './chainDraw.js';
+import { PLEAS, preloadPleas, rattleChain, speakPlea, stopPlea } from './chainAudio.js';
 import { DIALOGUE, bubble, ambientDialogue } from './dialogue.js';
 import { VERDICTS } from './verdicts.js';
 import { Scene, Sfx, cryptoSample } from './engine.js';
@@ -6,21 +7,77 @@ import { world, figure, reapers, text, clamp, chain, portal } from './underworld
 
 export class BookScene extends Scene {
  constructor(canvas){super(canvas);this.bookTime=0;this.dialogueTime=0;this.duration=20;this.lastBeat=-1;this.chosen=[];}
- startRun(picks){Sfx.stopScreams();this.captureVoiced=false;this.chosen=picks;this.verdicts=cryptoSample(VERDICTS,picks.length);this.nameDraw=createNameDraw(this.people.map(p=>p.st.name),picks[0]?.st.name);this.lastNameStep=-1;this.lastNameTick=0;this.bookTime=0;this.lastBeat=-1;this.mode='run';this.run=null;}
+ startRun(count){
+  this.draw = new ChainDraw(this.people, count, cryptoSample);
+  this.chosen = [];
+  this.verdicts = [];
+  this.bookTime = 0;
+  this.impactPlayed = false;
+  this.captureVoiced = false;
+  this.pleas = cryptoSample(PLEAS, 2);
+  preloadPleas();
+  this.mode = 'run';
+  this.run = null;
+  Sfx.humOn();
+ }
  newLobby(){Sfx.stopScreams();this.mode='lobby';this.chosen=[];this.bookTime=0;this.timeScale=1;this.run=null;}
  inviteToBoard(){if(this.mode!=='done')return;this.mode='presenting';this.presentationTime=0;this.boardLines=cryptoSample(DIALOGUE.answering,this.chosen.length);this.timeScale=1;Sfx.drum?.();}
  completePresentation(){if(this.mode!=='presenting')return;this.presentationTime=6;this.mode='answering';this.answeringStarted=this.dialogueTime;this.onPresentationDone?.();}
- update(dt){this.time+=dt;if(this.mode==='presenting'){this.presentationTime+=dt;if(this.presentationTime>=6)this.completePresentation();return;}if(this.mode!=='run')return;this.bookTime+=dt;const p=this.bookTime/this.duration;if(p>=.20&&p<.78){const cursor=nameDrawCursor(this.nameDraw,(p-.20)/.58);if(cursor.step!==this.lastNameStep){this.lastNameStep=cursor.step;if(!this.lastNameTick||this.time-this.lastNameTick>.055){Sfx.penTick();this.lastNameTick=this.time;}}}if(p>=.905&&!this.captureVoiced){this.captureVoiced=true;Sfx.scream(this.chosen.length);}const beat=Math.floor(this.bookTime*(p>.72?6:2));if(beat!==this.lastBeat&&p<.85){this.lastBeat=beat;Sfx.drum?.();}if(this.bookTime>=this.duration)this.finish();}
- finish(){if(this.mode!=='run')return;this.bookTime=this.duration;this.mode='done';Sfx.stamp?.();this.onResult?.(this.chosen.map((p,i)=>({...p.st,verdict:this.verdicts[i]})));}
+ update(dt){
+  this.time += dt;
+  if(this.mode==='presenting'){
+   this.presentationTime += dt;
+   if(this.presentationTime>=6)this.completePresentation();
+   return;
+  }
+  if(this.mode!=='run')return;
+  this.bookTime += dt;
+  const progress = this.bookTime / this.duration;
+  if(progress >= .052 && !this.impactPlayed){
+   this.impactPlayed = true;
+   Sfx.slam();
+   rattleChain();
+  }
+  this.draw.advance(progress, kind => {
+   if(kind==='escape')Sfx.drum();
+   if(kind==='pull')speakPlea(this.pleas[0]);
+   if(kind==='seal'){
+    this.chosen = this.draw.winners;
+    Sfx.stamp();
+   }
+   rattleChain(kind==='sweep'||kind==='seal'?1.35:1);
+  });
+  if(progress>=.865 && !this.captureVoiced){
+   this.captureVoiced = true;
+   rattleChain(1.5);
+   speakPlea(this.pleas[1]);
+  }
+  if(progress>=1)this.finish();
+ }
+
+ finish(){
+  if(this.mode!=='run')return;
+  this.draw.advance(1);
+  this.chosen = this.draw.winners;
+  this.verdicts = cryptoSample(VERDICTS,this.chosen.length);
+  this.bookTime = this.duration;
+  this.mode = 'done';
+  Sfx.humOff(false);
+  stopPlea();
+  this.onResult?.(this.chosen.map((person,i)=>({...person.st,verdict:this.verdicts[i]})));
+ }
  skipToEnd(){if(this.mode==='presenting')this.completePresentation();else this.finish();}
  render(){
- const c=this.ctx;c.save();c.setTransform(this.cv.width/1920,0,0,this.cv.height/1080,0,0);c.textBaseline='middle';world(c,this.time);
+ const c=this.ctx;c.save();c.setTransform(this.cv.width/1920,0,0,this.cv.height/1080,0,0);c.textBaseline='middle';
  const presenting=this.mode==='presenting'||this.mode==='answering';
  const p=this.mode==='lobby'||presenting?0:clamp(this.bookTime/this.duration),active=this.mode==='run'||this.mode==='done';
+ const impact=active?clamp((p-.052)/.038):1;
+ if(active&&p>=.052&&impact<1)c.translate(Math.sin(impact*34)*(1-impact)*13,(1-impact)*8);
+ world(c,this.time);
  // Diêm Vương luôn ở trong cảnh; khi mở sổ mới cầm bút suy nghĩ.
- figure(c,690,625,{robe:'#8c3037',kind:'king',scale:1.3,t:this.time,action:active&&p<.78?'think':'angry'});
+ figure(c,690,625,{robe:'#8c3037',kind:'king',scale:1.3,t:this.time,action:active&&p<.10?'slam':active&&p<.78?'think':'angry',slam:clamp(p/.052)});
  c.fillStyle='#542e30';c.fillRect(610,615,700,65);c.fillStyle='#b38a50';c.fillRect(605,610,710,10);c.fillStyle='#39252b';c.fillRect(640,680,24,40);c.fillRect(1260,680,24,40);
- text(c,active?(p<.78?'Diêm Vương đang suy nghĩ…':p<.87?'Lồng đèn đã chọn tên!':'Hắc Bạch Vô Thường, dẫn lên bảng!'):'Diêm Vương chờ mở sổ',970,710,23);
+ text(c,active?(p<.78?'Diêm Vương đang suy nghĩ…':p<.87?'Diêm Vương đóng ấn!':'Hắc Bạch Vô Thường, dẫn lên bảng!'):'Diêm Vương chờ mở sổ',970,710,23);
  if(!(active&&p<.89)){c.fillStyle='#682b32';c.fillRect(925,580,170,27);text(c,'SỔ NAM TÀO',1010,593,16,'#eac17a');}
  if(active&&p>.86)portal(c,this.time,1750,870,clamp((p-.86)/.035));
  const count=this.people.length,cols=Math.min(12,count),rows=Math.ceil(count/cols),spacing=Math.min(115,1320/cols);
@@ -48,12 +105,13 @@ export class BookScene extends Scene {
   if(selected&&depart>.75){c.globalAlpha=1-clamp((depart-.75)/.25);}
   figure(c,targetX,targetY,{robe:['#698d88','#9278a1','#b58c62','#627b9b','#b2767d','#8d9263'][i%6],kind:['civilian','longhair','scholar','soldier','hungry','elder'][i%6],face:['#d9b78e','#b7c7be','#c5ad90','#afbeb0'][i%4],scale:Math.min(.65,cols>10?.48:.6),t:this.time+i,action:selected&&p>.9?'run':'idle'});
   const name=person.st.name;c.font='600 17px "Be Vietnam Pro",sans-serif';const width=Math.min(190,c.measureText(name).width+18);c.fillStyle=selected&&p>.8?'#852e3a':'#191c2be6';c.fillRect(targetX-width/2,targetY+12,width,28);text(c,name,targetX,targetY+27,16);c.restore();
+  if(active&&p>=.89&&chosenIndex===0)bubble(c,this.pleas[1],targetX,targetY-125,{spooky:true});
  });
  if(!active&&!presenting){reapers(c,this.time,1120+Math.sin(this.time*.4)*90,750,60);text(c,'Hắc Bạch Vô Thường · chờ lệnh',1120,790,18);}
- if(active){const label=p<.08?'Mở bìa sổ':p<.20?'Lật sổ sinh tử':p<.78?'Tra sổ · ai chưa học bài?':p<.86?'Lồng đèn sáng tên được gọi':'Áp giải người được gọi';text(c,label,960,105,27,'#f1d4a0');c.fillStyle='#221d2c';c.fillRect(660,130,600,6);c.fillStyle='#ba5960';c.fillRect(660,130,600*p,6);}
+ if(active){const label=p<.08?'Mở bìa sổ':p<.20?'Lật sổ sinh tử':p<.78?'Hắc Bạch kéo hồ sơ':p<.86?'Giằng xích · chốt hồ sơ':'Áp giải người được gọi';text(c,label,960,105,27,'#f1d4a0');c.fillStyle='#221d2c';c.fillRect(660,130,600,6);c.fillStyle='#ba5960';c.fillRect(660,130,600*p,6);}
  // Lời người tham gia: một người nói mỗi lượt, giữ nguyên bảng tên bên dưới.
  const slot=Math.floor(this.dialogueTime/12),phase=this.dialogueTime%12;
- if(!presenting&&this.people.length&&phase>1&&phase<10){
+ if(!presenting&&!active&&this.people.length&&phase>1&&phase<10){
   const talking=this.mode==='run'&&p>.86 ? this.people.indexOf(this.chosen[0]) : slot%this.people.length;
   if(talking>=0){
    const row=Math.floor(talking/cols),col=talking%cols,rowCount=Math.min(cols,count-row*cols);
@@ -65,7 +123,10 @@ export class BookScene extends Scene {
  }
  if(this.mode!=='done'&&!presenting)ambientDialogue(c,this.dialogueTime,this.time);
  // Le sổ được vẽ sau toàn bộ thoại nền để luôn che thoại, giữ tên và tội danh rõ.
+ if(active&&p>=.20&&p<.89)reapers(c,this.time,1240,731,335);
  if(active&&p<.89)this.drawBook(c,p);
+ if(active&&p>=.74&&p<.84&&this.draw.pulled)bubble(c,this.pleas[0],1280,725,{spooky:true});
+
  if(presenting)this.drawPresentation(c);
  c.restore();
  }
@@ -134,51 +195,83 @@ export class BookScene extends Scene {
    c.save();c.scale(Math.cos(angle)||.001,1);const pg=c.createLinearGradient(0,0,480,0);pg.addColorStop(0,'#a38658');pg.addColorStop(.3,'#efdfb3');pg.addColorStop(1,'#cbb17e');c.fillStyle=pg;c.beginPath();c.moveTo(0,-250);c.quadraticCurveTo(250,-285-Math.sin(angle)*80,480,-250);c.lineTo(480,250);c.quadraticCurveTo(240,220-Math.sin(angle)*60,0,250);c.fill();c.restore();
    c.fillStyle='#4a33294d';c.fillRect(-8,-250,16+Math.sin(angle)*30,500);text(c,`Trang ${page+1}`,245,215,20,'#73503b');c.restore();return;
   }
-  const names=this.people.map(person=>person.st.name),cursor=nameDrawCursor(this.nameDraw,clamp((p-.20)/.58));
-  const pageSize=14,page=Math.floor(cursor.index/pageSize),first=page*pageSize;
-  text(c,'SỔ ĐIỂM DANH',0,-210,30,'#653d31');
-  const visible=Math.min(pageSize,names.length-first),columns=visible>7?2:1,rows=Math.ceil(visible/columns);
-  const halfWidth=columns===1?345:195;
-  const slotOf=index=>{const slot=index-first,row=Math.floor(slot/columns),col=slot%columns;return {x:columns===1?0:(col-.5)*460,y:-15+(row-(rows-1)/2)*44};};
-  for(let i=first;i<Math.min(first+pageSize,names.length);i++){
-   const pos=slotOf(i);
-   const revealed=p>=.78;
-   const chosen=revealed&&this.chosen.some(person=>person.st.name===names[i]);
-   const lit=revealed ? chosen : i===cursor.index;
-   if(lit){
-    c.fillStyle='#eaa53644';
-    c.beginPath();
-    c.roundRect(pos.x-halfWidth,pos.y-19,halfWidth*2,38,7);
-    c.fill();
+  this.drawDossiers(c,p);
+  c.restore();
+ }
+
+ drawDossiers(c,p){
+  const draw=this.draw;
+  const finalPool=p>=.74;
+  const files=finalPool ? draw.finalists : this.people;
+  const columns=finalPool ? Math.min(files.length,3) : Math.min(6,Math.ceil(Math.sqrt(files.length)));
+  const rows=Math.ceil(files.length/columns);
+  const width=Math.min(finalPool?240:180,900/columns-12);
+  const height=Math.min(finalPool?78:53,330/rows-5);
+  const swing=Math.sin(this.time*22);
+  const title=p>=.84?'ĐẾN LƯỢT CON':finalPool?'GIẰNG CO SÁT NÚT':'HỒ SƠ TRONG SỔ NAM TÀO';
+  text(c,title,0,-212,30,'#733240');
+  const recent=[...draw.changed.entries()].filter(([,event])=>p-event.at<.065);
+  files.forEach((person,index)=>{
+   const escaped=draw.escaped.has(person);
+   const change=draw.changed.get(person);
+   const motion=change?1-clamp((p-change.at)/.06):0;
+   const row=Math.floor(index/columns),col=index%columns;
+   let x=(col-(columns-1)/2)*(width+12);
+   let y=-155+row*(height+5);
+   const lead=p<.84?draw.pulled:draw.slipped?draw.reserve:draw.pulled;
+   const tug=finalPool&&!escaped&&person===lead;
+   const launch=clamp((p-.20-(index%6)*.003)/.055);
+   if(!finalPool){x*=launch;y=130+(y-130)*launch;}
+   if(tug){
+    const pullStart=p>=.84&&draw.slipped?.84:.74;
+    const pull=clamp((p-pullStart)/(draw.slipped?.025:.10));
+    y+=Math.sin(pull*Math.PI/2)*90+swing*5;
+    x*=1-.42*pull;
+   }
+   if(draw.slipped&&person===draw.finalEscape)y+=motion*90;
+   if(escaped)x+=motion*(col%2?65:-65);
+   if(change?.returning)x+=motion*120;
+   if(!escaped){
+    const side=tug?(p>=.84&&draw.slipped?1:-1):index%2?1:-1;
+    chain(c,this.time,[side*425,150],[x,y],tug?.83:.38);
    }
    c.save();
-   c.translate(pos.x-halfWidth+19,pos.y);
-   if(lit){
-    c.shadowColor='#ffad33';
-    c.shadowBlur=chosen && Math.sin((p-.78)*220)>0 ? 30 : 15;
-   }
-   c.fillStyle=lit?'#ffc754':'#846d60';
+   c.translate(x,y);
+   c.rotate((tug?swing*.075:0)+(escaped?motion*.28:0));
+   c.globalAlpha=escaped?.36:1;
+   c.fillStyle=escaped?'#8a7867':'#e0c292';
+   c.strokeStyle=tug?'#a33239':'#8c6854';
+   c.lineWidth=tug?4:1.5;
    c.beginPath();
-   c.ellipse(0,0,11,13,0,0,Math.PI*2);
-   c.fill();
-   c.shadowBlur=0;
-   c.fillStyle='#674035';
-   c.fillRect(-6,-15,12,4);
-   c.fillRect(-6,11,12,4);
+   c.roundRect(-width/2,-height/2,width,height,5);
+   c.fill();c.stroke();
+   c.font='600 19px "Be Vietnam Pro",sans-serif';
+   c.fillStyle='#422d37';c.textAlign='center';
+   c.fillText(person.st.name,0,0,width-12);
    c.restore();
-
-   c.font=`${lit?'800':'500'} 24px "Be Vietnam Pro",sans-serif`;
-   c.fillStyle=lit?'#902237':revealed?'#806e60':'#4b352b';
-   c.textAlign='center';
-   c.fillText(names[i],pos.x+12,pos.y,halfWidth*2-62);
+  });
+  if(p>=.68&&p<.735){
+   const sweep=clamp((p-.68)/.055);
+   chain(c,this.time,[425,150],[425-850*Math.sin(sweep*Math.PI),80-225*Math.sin(sweep*Math.PI)],.65);
   }
-  text(c,`Trang ${page+1}/${Math.max(1,Math.ceil(names.length/pageSize))} · ${names.length} tên`,0,169,19,'#76513e');
-  if(p<.78){
-   text(c,p>.60?'CHẬM LẠI… SẮP DỪNG!':'Ánh đèn đang chạy qua từng tên…',0,202,20,'#8f2c3b');
-   if(names.length>1){const previous=(cursor.index-1+names.length)%names.length;c.font='16px "Be Vietnam Pro",sans-serif';c.fillStyle='#735747';c.fillText(`Vừa lướt qua: ${names[previous]}`,0,233,800);}
-  }else{
-   if(p>.84){c.save();c.translate(0,232);c.rotate(-.025);c.strokeStyle='#a52333';c.lineWidth=3;c.strokeRect(-190,-22,380,44);text(c,'ĐẾN LƯỢT CON',0,0,28,'#a52333');c.restore();}
+  if(p>=.84){
+   const stamp=clamp((p-.84)/.025);
+   c.save();
+   c.translate(0,122);
+   c.rotate(-.09);
+   c.scale(1+.42*(1-stamp),1+.42*(1-stamp));
+   c.globalAlpha=stamp;
+   c.strokeStyle='#a52333';c.lineWidth=4;c.strokeRect(-155,-22,310,44);
+   text(c,'ĐẾN LƯỢT CON',0,0,26,'#a52333');
+   c.restore();
   }
-  c.restore();
+  const status=p>=.84?(draw.slipped?'Móc xích bật tung · hồ sơ khác bị giữ!':'Xích siết chặt · Diêm Vương đóng ấn'):
+   finalPool?'Xích đã kéo sát bàn…':
+   p>=.68?(draw.returning?'Xích quét ngược kéo hồ sơ trở lại!':'Xích quét ngược hụt!'):
+   'Trống thưa dần · hồ sơ lần lượt tuột xích';
+  text(c,status,0,182,22,'#793044');
+  const released=recent.filter(([,event])=>!event.returning).map(([person])=>person.st.label || person.st.name);
+  const footer=released.length?`${p>=.84?'Thoát lượt này':'Tạm thoát'} · ${released.slice(0,3).join(', ')}${released.length>3?` +${released.length-3}`:''}`:`Còn mắc xích · ${draw.active.length} hồ sơ`;
+  c.font='600 18px "Be Vietnam Pro",sans-serif';c.fillStyle='#604337';c.textAlign='center';c.fillText(footer,0,218,850);
  }
 }

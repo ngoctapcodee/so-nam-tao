@@ -2,7 +2,7 @@ const TAU=Math.PI*2;
 export const clamp=(v)=>Math.max(0,Math.min(v,1));
 export function text(c,s,x,y,size=22,color='#ecd5aa'){c.fillStyle=color;c.font=`600 ${size}px "Be Vietnam Pro",sans-serif`;c.textAlign='center';c.fillText(s,x,y);}
 function line(c,points,color,width=4){c.strokeStyle=color;c.lineWidth=width;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}
-export function figure(c,x,y,{robe='#ddd6c4',hat='',kind='',scale=1,t=0,action='idle',face='#d8b78a',flip=1}={}){
+export function figure(c,x,y,{robe='#ddd6c4',hat='',kind='',scale=1,t=0,action='idle',face='#d8b78a',flip=1,slam=0}={}){
  c.save();c.translate(x,y);c.scale(scale,scale);
  c.fillStyle='#08081255';c.beginPath();c.ellipse(0,9,43,10,0,0,TAU);c.fill();
  c.scale(flip,1);
@@ -16,6 +16,7 @@ export function figure(c,x,y,{robe='#ddd6c4',hat='',kind='',scale=1,t=0,action='
  c.beginPath();c.moveTo(-22,-84);c.quadraticCurveTo(-32,-55,-35-wave*3,-17);c.quadraticCurveTo(0,-5,35+wave*3,-17);c.quadraticCurveTo(24,-55,22,-84);c.closePath();c.fill();
  line(c,[[-11,-78],[0,-55],[14,-80]],'#d8b679',3);line(c,[[-26,-41],[25,-41]],'#b48a53',6);line(c,[[-18,-35],[-23,-15]],'#16172555',2);line(c,[[12,-35],[23,-16]],'#fff0d52a',2);
  let l=[-43,-49+wave*4],r=[42,-51-wave*4];if(run){l=[-40,-68+stride];r=[39,-70-stride];}if(fight){l=[-46,-90+wave*15];r=[68,-97-wave*15];}if(action==='stir')r=[42+Math.cos(t*3)*13,-52+Math.sin(t*3)*10];if(action==='think')r=[19,-99];if(angry)r=[48,-55-Math.max(0,wave)*43];
+ if(action==='slam'){const hit=slam<.6?-65-65*slam/.6:-130+118*((slam-.6)/.4)**2;r=[58,hit];}
  limb([-19,-76],[-33,(l[1]-76)/2],l,robe,13);limb([19,-76],[37,(r[1]-76)/2],r,robe,13);
  for(const hand of [l,r]){c.fillStyle=face;c.beginPath();c.ellipse(...hand,7,6,.2,0,TAU);c.fill();}
  c.fillStyle='#181722';c.beginPath();c.ellipse(0,-103,26,31,0,0,TAU);c.fill();
